@@ -13,7 +13,7 @@ gunzip candidate_entities.json.gz
 mkdir ../working_dir
 cd ../working_dir
 
-cp ../BAQKET_baseline/run_jaqket_baseline_sample.sh .
+cp ../JAQKET_baseline/run_jaqket_baseline_sample.sh .
 
 ./run_jaqket_baseline_sample.sh outputs
 ```
