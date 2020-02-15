@@ -93,8 +93,8 @@ class DataProcessor(object):
         raise NotImplementedError()
 
 
-class JpQuizProcessor(DataProcessor):
-    """Processor for the JpQuiz data set."""
+class JaqketProcessor(DataProcessor):
+    """Processor for the Jaqket data set."""
 
     def _get_entities(self, data_dir, entities_fname):
         logger.info("LOOKING AT {} entities".format(data_dir))
@@ -153,9 +153,9 @@ class JpQuizProcessor(DataProcessor):
         skip_examples = 0
 
         # for line in tqdm.tqdm(
-        #    lines, desc="read jpquiz data", ascii=True, ncols=80
+        #    lines, desc="read jaqket data", ascii=True, ncols=80
         # ):
-        logger.info("read jpquiz data: {}".format(len(lines)))
+        logger.info("read jaqket data: {}".format(len(lines)))
         for line in lines:
             data_raw = json.loads(line.strip("\n"))
 
@@ -308,9 +308,9 @@ def convert_examples_to_features(
     return features
 
 
-processors = {"jpquiz": JpQuizProcessor}
+processors = {"jaqket": JaqketProcessor}
 
-MULTIPLE_CHOICE_TASKS_NUM_LABELS = {"jpquiz", 20}
+MULTIPLE_CHOICE_TASKS_NUM_LABELS = {"jaqket", 20}
 
 ###############################################################################
 ###############################################################################
@@ -785,9 +785,9 @@ def main():
     )
     parser.add_argument(
         "--task_name",
-        default="jpquiz",
+        default="jaqket",
         type=str,
-        choices=("jpquiz"),
+        choices=("jaqket"),
         help=", ".join(processors.keys()),
     )
     parser.add_argument(
