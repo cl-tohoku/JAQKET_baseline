@@ -84,16 +84,8 @@ class InputFeatures(object):
 class DataProcessor(object):
     """Base class for data converters for multiple choice data sets."""
 
-    def get_train_examples(self, data_dir):
+    def get_examples(self, mode, data_dir, fname, entities_fname):
         """Gets a collection of `InputExample`s for the train set."""
-        raise NotImplementedError()
-
-    def get_dev_examples(self, data_dir):
-        """Gets a collection of `InputExample`s for the dev set."""
-        raise NotImplementedError()
-
-    def get_test_examples(self, data_dir):
-        """Gets a collection of `InputExample`s for the test set."""
         raise NotImplementedError()
 
     def get_labels(self):
@@ -104,43 +96,22 @@ class DataProcessor(object):
 class JpQuizProcessor(DataProcessor):
     """Processor for the JpQuiz data set."""
 
-    def _get_entities(self, data_dir):
+    def _get_entities(self, data_dir, entities_fname):
         logger.info("LOOKING AT {} entities".format(data_dir))
         entities = dict()
-        for line in self._read_json(os.path.join(data_dir, "entities.jsonl")):
+        for line in self._read_json(os.path.join(data_dir, entities_fname)):
             entity = json.loads(line.strip())
             entities[entity["title"]] = entity["text"]
 
         return entities
 
-    def get_train_examples(self, data_dir, fname="train.jsonl", num_options=20):
+    def get_examples(self, mode, data_dir, fname, entities_fname, num_options=20):
         """See base class."""
-        logger.info("LOOKING AT {} train".format(data_dir))
-        entities = self._get_entities(data_dir)
+        logger.info("LOOKING AT {} [{}]".format(data_dir, mode))
+        entities = self._get_entities(data_dir, entities_fname)
         return self._create_examples(
             self._read_json(os.path.join(data_dir, fname)),
-            "train",
-            entities,
-            num_options,
-        )
-
-    def get_dev_examples(self, data_dir, fname="dev.jsonl", num_options=20):
-        """See base class."""
-        logger.info("LOOKING AT {} dev".format(data_dir))
-        entities = self._get_entities(data_dir)
-        return self._create_examples(
-            self._read_json(os.path.join(data_dir, fname)),
-            "dev",
-            entities,
-            num_options,
-        )
-
-    def get_test_examples(self, data_dir, fname="test.jsonl", num_options=20):
-        logger.info("LOOKING AT {} test".format(data_dir))
-        entities = self._get_entities(data_dir)
-        return self._create_examples(
-            self._read_json(os.path.join(data_dir, fname)),
-            "test",
+            mode,
             entities,
             num_options,
         )
@@ -175,7 +146,7 @@ class JpQuizProcessor(DataProcessor):
             lines = fin.readlines()
             return lines
 
-    def _create_examples(self, lines, type, entities, num_options):
+    def _create_examples(self, lines, t_type, entities, num_options):
         """Creates examples for the training and dev sets."""
 
         examples = []
@@ -214,7 +185,7 @@ class JpQuizProcessor(DataProcessor):
                     )
                 )
 
-        if type == "train":
+        if t_type == "train":
             assert len(examples) > 1
             assert examples[0].label is not None
 
@@ -338,7 +309,6 @@ def convert_examples_to_features(
 
 
 processors = {"jpquiz": JpQuizProcessor}
-
 
 MULTIPLE_CHOICE_TASKS_NUM_LABELS = {"jpquiz", 20}
 
@@ -738,17 +708,27 @@ def load_and_cache_examples(args, task, tokenizer, evaluate=False, test=False):
         logger.info("Creating features from dataset file at %s", args.data_dir)
         label_list = processor.get_labels()
         if evaluate:
-            examples = processor.get_dev_examples(
-                args.data_dir, fname=args.dev_fname, num_options=args.eval_num_options,
+            examples = processor.get_examples(
+                "dev",
+                args.data_dir,
+                args.dev_fname,
+                args.entities_fname,
+                num_options=args.eval_num_options,
             )
         elif test:
-            examples = processor.get_test_examples(
-                args.data_dir, fname=args.test_fname, num_options=args.eval_num_options,
+            examples = processor.get_examples(
+                "test",
+                args.data_dir,
+                args.test_fname,
+                args.entities_fname,
+                num_options=args.eval_num_options,
             )
         else:
-            examples = processor.get_train_examples(
+            examples = processor.get_examples(
+                "train",
                 args.data_dir,
-                fname=args.train_fname,
+                args.train_fname,
+                args.entities_fname,
                 num_options=args.train_num_options,
             )
         logger.info("Training number: %s", str(len(examples)))
@@ -810,10 +790,17 @@ def main():
         choices=("jpquiz"),
         help=", ".join(processors.keys()),
     )
-    parser.add_argument("--output_dir", default="./outputs/", type=str, help="")
-    parser.add_argument("--train_fname", default="train.jsonl", type=str, help="")
-    parser.add_argument("--dev_fname", default="dev.jsonl", type=str, help="")
-    parser.add_argument("--test_fname", default="test.jsonl", type=str, help="")
+    parser.add_argument(
+        "--output_dir", default="./outputs/", type=str, help="")
+    parser.add_argument(
+        "--train_fname", default="train_questions.json", type=str, help="")
+    parser.add_argument(
+        "--dev_fname", default="dev1_questions.json", type=str, help="")
+    parser.add_argument(
+        "--test_fname", default="dev2_questions.json", type=str, help="")
+    parser.add_argument(
+        "--entities_fname", default="candidate_entities.json", type=str,
+        help="")
     # Other parameters
     parser.add_argument("--config_name", default="", type=str, help="")
     parser.add_argument("--tokenizer_name", default="", type=str, help="")
