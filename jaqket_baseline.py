@@ -161,7 +161,7 @@ class JaqketProcessor(DataProcessor):
 
             id = data_raw["qid"]
             question = data_raw["question"].replace("_", "")  # "_" は cloze question
-            options = data_raw["answer_candidates"][:num_options]
+            options = data_raw["answer_candidates"][:num_options]  # TODO
             answer = data_raw["answer_entity"]
 
             if answer not in options:
@@ -174,7 +174,7 @@ class JaqketProcessor(DataProcessor):
             contexts = [entities[options[i]] for i in range(num_options)]
             truth = str(options.index(answer))
 
-            if len(options) == num_options:
+            if len(options) == num_options:  # TODO
                 examples.append(
                     InputExample(
                         example_id=id,
@@ -455,16 +455,8 @@ def train(args, train_dataset, model, tokenizer):
         disable=args.local_rank not in [-1, 0],
     )
     set_seed(args)  # Added here for reproductibility (even between python 2 and 3)
-    for _ in train_iterator:
+    for _ in train_iterator:  # epoch
         logger.info("Total batch size = %d", len(train_dataloader))
-        # epoch_iterator = tqdm.tqdm(
-        #    train_dataloader,
-        #    desc="Iteration",
-        #    ascii=True,
-        #    ncols=80,
-        #    disable=args.local_rank not in [-1, 0],
-        # )
-        # for step, batch in enumerate(epoch_iterator):
         for step, batch in enumerate(train_dataloader):
             # training model one step
             model.train()
@@ -497,82 +489,56 @@ def train(args, train_dataset, model, tokenizer):
 
             # do update (logging and save model)
             tr_loss += loss.item()
-            if (step + 1) % args.gradient_accumulation_steps == 0:
-                optimizer.step()
-                scheduler.step()  # Update learning rate schedule
-                model.zero_grad()
-                global_step += 1
+            if (step + 1) % args.gradient_accumulation_steps != 0:
+                continue
+            ################################################
+            # update
+            optimizer.step()
+            scheduler.step()  # Update learning rate schedule
+            model.zero_grad()
+            global_step += 1
+            if (
+                args.local_rank in [-1, 0]
+                and args.logging_steps > 0
+                and global_step % args.logging_steps == 0
+            ):
+                tb_writer.add_scalar("lr", scheduler.get_lr()[0], global_step)
+                tb_writer.add_scalar(
+                    "loss",
+                    (tr_loss - logging_loss) / args.logging_steps,
+                    global_step,
+                )
+                logger.info(
+                    "Ave.loss: %12.6f Accum.loss %12.6f "
+                    "#upd: %5d #iter: %7d lr: %s",
+                    (tr_loss - logging_loss) / args.logging_steps,
+                    (tr_loss / global_step),
+                    global_step,
+                    step,
+                    str(["%.4e" % (lr["lr"]) for lr in optimizer.param_groups]),
+                )
+                logging_loss = tr_loss
 
-                if (
-                    args.local_rank in [-1, 0]
-                    and args.logging_steps > 0
-                    and global_step % args.logging_steps == 0
-                ):
-                    # Log metrics
-                    # Only evaluate when single GPU otherwise metrics may
-                    # not average well
-                    if args.local_rank == -1 and args.evaluate_during_training:
-                        results = evaluate(args, model, tokenizer)
-                        for key, value in results.items():
-                            tb_writer.add_scalar(
-                                "eval_{}".format(key), value, global_step
-                            )
-                        if results["eval_acc"] > best_dev_acc:
-                            best_dev_acc = results["eval_acc"]
-                            # best_dev_loss = results["eval_loss"]
-                            best_steps = global_step
-                            if args.do_test:
-                                results_test = evaluate(
-                                    args, model, tokenizer, test=True
-                                )
-                                for key, value in results_test.items():
-                                    tb_writer.add_scalar(
-                                        "test_{}".format(key), value, global_step,
-                                    )
-                                logger.info(
-                                    "test acc: %s, loss: %s, global steps: %s",
-                                    str(results_test["eval_acc"]),
-                                    str(results_test["eval_loss"]),
-                                    str(global_step),
-                                )
-                    # Log metrics END
-                    tb_writer.add_scalar("lr", scheduler.get_lr()[0], global_step)
-                    tb_writer.add_scalar(
-                        "loss",
-                        (tr_loss - logging_loss) / args.logging_steps,
-                        global_step,
-                    )
-                    logger.info(
-                        "Ave.loss: %12.6f Accum.loss %12.6f "
-                        "#upd: %5d #iter: %7d lr: %s",
-                        (tr_loss - logging_loss) / args.logging_steps,
-                        (tr_loss / global_step),
-                        global_step,
-                        step,
-                        str(["%.4e" % (lr["lr"]) for lr in optimizer.param_groups]),
-                    )
-                    logging_loss = tr_loss
-
-                # save model
-                if (
-                    args.local_rank in [-1, 0]
-                    and args.save_steps > 0
-                    and global_step % args.save_steps == 0
-                ):
-                    # Save model checkpoint
-                    output_dir = os.path.join(
-                        args.output_dir, "checkpoint-{}".format(global_step)
-                    )
-                    if not os.path.exists(output_dir):
-                        os.makedirs(output_dir)
-                    model_to_save = (
-                        model.module if hasattr(model, "module") else model
-                    )  # Take care of distributed/parallel training
-                    model_to_save.save_pretrained(output_dir)
-                    tokenizer.save_vocabulary(output_dir)
-                    torch.save(args, os.path.join(output_dir, "training_args.bin"))
-                    logger.info("Saving model checkpoint to %s", output_dir)
-                # save model END
+            # save model
+            if (
+                args.local_rank in [-1, 0]
+                and args.save_steps > 0
+                and global_step % args.save_steps == 0
+            ):
+                # Save model checkpoint
+                output_dir = os.path.join(
+                    args.output_dir, "checkpoint-{}".format(global_step)
+                )
+                if not os.path.exists(output_dir):
+                    os.makedirs(output_dir)
+                model_to_save = (
+                    model.module if hasattr(model, "module") else model
+                )  # Take care of distributed/parallel training
+                model_to_save.save_pretrained(output_dir)
+                tokenizer.save_vocabulary(output_dir)
+                torch.save(args, os.path.join(output_dir, "training_args.bin"))
+                logger.info("Saving model checkpoint to %s", output_dir)
+            # save model END
 
             if args.max_steps > 0 and global_step > args.max_steps:
                 epoch_iterator.close()
