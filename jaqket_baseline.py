@@ -14,6 +14,7 @@ import torch
 
 from typing import List
 from io import open
+import gzip
 from torch.utils.data import (
     DataLoader,
     RandomSampler,
@@ -99,7 +100,7 @@ class JaqketProcessor(DataProcessor):
     def _get_entities(self, data_dir, entities_fname):
         logger.info("LOOKING AT {} entities".format(data_dir))
         entities = dict()
-        for line in self._read_json(os.path.join(data_dir, entities_fname)):
+        for line in self._read_json_gzip(os.path.join(data_dir, entities_fname)):
             entity = json.loads(line.strip())
             entities[entity["title"]] = entity["text"]
 
@@ -143,6 +144,11 @@ class JaqketProcessor(DataProcessor):
 
     def _read_json(self, input_file):
         with open(input_file, "r", encoding="utf-8") as fin:
+            lines = fin.readlines()
+            return lines
+
+    def _read_json_gzip(self, input_file):
+        with gzip.open(input_file, "rt", encoding="utf-8") as fin:
             lines = fin.readlines()
             return lines
 
@@ -400,6 +406,24 @@ def train(args, train_dataset, model, tokenizer):
     scheduler = get_linear_schedule_with_warmup(
         optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total,
     )
+    #########################################################################
+    # Check if saved optimizer or scheduler states exist
+    t_output_dir = os.path.join(
+        args.output_dir, "checkpoint-{}/".format(args.init_global_step)
+    )
+    if (os.path.isfile(
+            os.path.join(t_output_dir, "optimizer.pt")) and
+        os.path.isfile(
+            os.path.join(t_output_dir, "scheduler.pt")
+        )
+    ):
+        # Load in optimizer and scheduler states
+        optimizer.load_state_dict(
+            torch.load(os.path.join(t_output_dir, "optimizer.pt")))
+        scheduler.load_state_dict(
+            torch.load(os.path.join(t_output_dir, "scheduler.pt")))
+    #########################################################################
+
     if args.fp16:
         try:
             from apex import amp
@@ -441,13 +465,37 @@ def train(args, train_dataset, model, tokenizer):
     logger.info("  Gradient Accumulation steps = %d", args.gradient_accumulation_steps)
     logger.info("  Total optimization steps = %d", t_total)
 
-    global_step = 0
+    global_step = 1
+    epochs_trained = 0
+    steps_trained_in_current_epoch = 0
+    #########################################################################
+    # Check if continuing training from a checkpoint
+    if os.path.exists(t_output_dir):
+        try:
+            # set global_step to gobal_step of last saved checkpoint from model path
+            #checkpoint_suffix = args.model_name_or_path.split("-")[-1].split("/")[0]
+            global_step = args.init_global_step  # int(checkpoint_suffix)
+            accum_step = args.gradient_accumulation_steps
+            t_num_batch = len(train_dataloader) // accum_step
+            epochs_trained = global_step // t_num_batch
+            steps_trained_in_current_epoch = (global_step * accum_step) % len(train_dataloader)
+
+            logger.info("  Continuing training from checkpoint, will skip to saved global_step")
+            logger.info("  Continuing training from epoch %d", epochs_trained)
+            logger.info("  Continuing training from global step %d", global_step)
+            logger.info("  Will skip the first %d steps in the first epoch", steps_trained_in_current_epoch)
+            logger.info("  %d update per 1 epoch", t_num_batch)
+        except ValueError:
+            logger.info("  Starting fine-tuning.")
+    #########################################################################
+    ##################################
     tr_loss, logging_loss = 0.0, 0.0
     best_dev_acc = 0.0
     # best_dev_loss = 99999999999.0
     best_steps = 0
     model.zero_grad()
     train_iterator = tqdm.trange(
+        epochs_trained,
         int(args.num_train_epochs),
         desc="Epoch",
         ascii=True,
@@ -456,8 +504,14 @@ def train(args, train_dataset, model, tokenizer):
     )
     set_seed(args)  # Added here for reproductibility (even between python 2 and 3)
     for _ in train_iterator:  # epoch
+        loss_epoch = 0
+        upd_epoch = global_step
         logger.info("Total batch size = %d", len(train_dataloader))
         for step, batch in enumerate(train_dataloader):
+            # Skip past any already trained steps if resuming training
+            if steps_trained_in_current_epoch > 0:
+                steps_trained_in_current_epoch -= 1
+                continue
             # training model one step
             model.train()
             batch = tuple(t.to(args.device) for t in batch)
@@ -467,7 +521,7 @@ def train(args, train_dataset, model, tokenizer):
                 "token_type_ids": batch[2],
                 "labels": batch[3],
             }
-            outputs = model(**inputs)
+            outputs = model(**inputs)  # forward計算
             # model outputs are always tuple in transformers (see doc)
             loss = outputs[0]
             if args.n_gpu > 1:
@@ -488,7 +542,9 @@ def train(args, train_dataset, model, tokenizer):
                 torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
 
             # do update (logging and save model)
-            tr_loss += loss.item()
+            t_loss = loss.item()
+            tr_loss += t_loss
+            loss_epoch += t_loss
             if (step + 1) % args.gradient_accumulation_steps != 0:
                 continue
             ################################################
@@ -512,7 +568,7 @@ def train(args, train_dataset, model, tokenizer):
                     "Ave.loss: %12.6f Accum.loss %12.6f "
                     "#upd: %5d #iter: %7d lr: %s",
                     (tr_loss - logging_loss) / args.logging_steps,
-                    (tr_loss / global_step),
+                    (loss_epoch / max(1, (global_step - upd_epoch))),
                     global_step,
                     step,
                     str(["%.4e" % (lr["lr"]) for lr in optimizer.param_groups]),
@@ -538,6 +594,15 @@ def train(args, train_dataset, model, tokenizer):
                 tokenizer.save_vocabulary(output_dir)
                 torch.save(args, os.path.join(output_dir, "training_args.bin"))
                 logger.info("Saving model checkpoint to %s", output_dir)
+                torch.save(
+                    optimizer.state_dict(), os.path.join(
+                        output_dir, "optimizer.pt"))
+                torch.save(
+                    scheduler.state_dict(), os.path.join(
+                        output_dir, "scheduler.pt"))
+                logger.info(
+                    "Saving optimizer and scheduler states to %s", 
+                    output_dir)
             # save model END
 
             if args.max_steps > 0 and global_step > args.max_steps:
@@ -810,6 +875,9 @@ def main():
     # for debugging
     parser.add_argument("--server_ip", type=str, default="", help="")
     parser.add_argument("--server_port", type=str, default="", help="")
+
+    parser.add_argument("--init_global_step", type=int, default=0, help="")
+
     args = parser.parse_args()
 
     if (
@@ -922,6 +990,22 @@ def main():
         train_dataset = load_and_cache_examples(
             args, args.task_name, tokenizer, evaluate=False
         )
+        #########################################################################
+        t_output_dir = os.path.join(
+            args.output_dir, "checkpoint-{}/".format(args.init_global_step)
+        )
+        if (os.path.isfile(
+                os.path.join(t_output_dir, "optimizer.pt")) and
+            os.path.isfile(
+                os.path.join(t_output_dir, "scheduler.pt")
+            )
+        ):
+            # Load in optimizer and scheduler states
+            model = model_class.from_pretrained(t_output_dir)  # , force_download=True)
+            tokenizer = tokenizer_class.from_pretrained(args.output_dir)
+            model.to(args.device)
+            logger.info(" Loading model from %s [%s]", args.output_dir, t_output_dir)
+        #########################################################################
         global_step, tr_loss, best_steps = train(args, train_dataset, model, tokenizer)
         logger.info(" global_step = %s, average loss = %s", global_step, tr_loss)
         logger.info("### Model training: Done")
