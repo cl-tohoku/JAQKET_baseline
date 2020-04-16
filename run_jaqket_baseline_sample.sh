@@ -13,7 +13,7 @@ python ../JAQKET_baseline/jaqket_baseline.py  \
   --model_name_or_path bert-base-japanese-whole-word-masking \
   --task_name jaqket \
   --entities_fname ${ENTITY} \
-  --train_fname $TRAIN} \
+  --train_fname ${TRAIN} \
   --dev_fname   ${DEV} \
   --test_fname  ${TEST} \
   --output_dir ${OUTDIR} \
