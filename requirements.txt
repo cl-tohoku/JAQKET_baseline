@@ -1,0 +1,6 @@
+tqdm
+numpy
+torch
+tensorboard
+transformers
+mecab-python3

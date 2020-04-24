@@ -31,3 +31,5 @@ cp ../JAQKET_baseline/run_jaqket_baseline_sample.sh .
 ./run_jaqket_baseline_sample.sh
 ```
 
+### Launch
+You can run these commands for setting in `./scripts/preprocessing.sh`
