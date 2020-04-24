@@ -17,7 +17,7 @@ pip install mecab-python3
 ## Sample
 ```
 mkdir ../data
-cd .../data
+cd ../data
 wget https://jaqket.s3-ap-northeast-1.amazonaws.com/data/train_questions.json
 wget https://jaqket.s3-ap-northeast-1.amazonaws.com/data/dev1_questions.json
 wget https://jaqket.s3-ap-northeast-1.amazonaws.com/data/dev2_questions.json
