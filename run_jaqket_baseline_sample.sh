@@ -35,6 +35,7 @@ python ../JAQKET_baseline/jaqket_baseline.py \
   --dev_fname  ${DEV}  \
   --test_fname ${TEST} \
   --task_name jaqket \
+  --entities_fname ${ENTITY} \
   --model_name_or_path ${OUTDIR} \
   --eval_num_options 20 \
   --per_gpu_eval_batch_size 4 \
