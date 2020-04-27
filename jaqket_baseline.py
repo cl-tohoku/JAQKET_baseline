@@ -604,7 +604,7 @@ def train(args, train_dataset, model, tokenizer):
                     "Saving optimizer and scheduler states to %s", 
                     output_dir)
             # save model END
-
+            import ipdb; ipdb.set_trace()
             if args.max_steps > 0 and global_step > args.max_steps:
                 epoch_iterator.close()
                 break
@@ -830,7 +830,7 @@ def main():
     parser.add_argument(
         "--test_fname", default="dev2_questions.json", type=str, help="")
     parser.add_argument(
-        "--entities_fname", default="candidate_entities.json", type=str,
+        "--entities_fname", default="candidate_entities.json.gz", type=str,
         help="")
     # Other parameters
     parser.add_argument("--config_name", default="", type=str, help="")
