@@ -830,7 +830,7 @@ def main():
     parser.add_argument(
         "--test_fname", default="dev2_questions.json", type=str, help="")
     parser.add_argument(
-        "--entities_fname", default="candidate_entities.json", type=str,
+        "--entities_fname", default="candidate_entities.json.gz", type=str,
         help="")
     # Other parameters
     parser.add_argument("--config_name", default="", type=str, help="")
