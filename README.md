@@ -1,5 +1,11 @@
 # JAQKET_baseline
 
+__Home__
+- https://www.nlp.ecei.tohoku.ac.jp/projects/aio/
+
+__LeaderBoard__
+- https://www.nlp.ecei.tohoku.ac.jp/projects/AIP-LB/task/aio
+
 ## Requirements
 python 3.6 or later
 
