@@ -47,7 +47,7 @@ After training, you would convert a prediction file into a submission format.
 ```code
 $ cd [your working directory]
 $ python ../JAQKET_baseline/scripts/create_submission_file.py \
-    -test ../data/qio_leaderboard.json \
+    -test ../data/aio_leaderboard.json \
     -pred output_dir/is_test_true_output_labels.txt \
     -fo submission.json \
     -wq -wc
