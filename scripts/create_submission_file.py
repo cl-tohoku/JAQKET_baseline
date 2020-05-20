@@ -101,7 +101,7 @@ def main():
 
 if __name__ == '__main__':
     """ running example
-    $ python make_result_file.py \
+    $ python create_submission_file.py \
             -test qio_leaderboard.json \
             -pred is_test_true_output_labels.txt \
             -fo submission.json \
