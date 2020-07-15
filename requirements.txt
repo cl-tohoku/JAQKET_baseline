@@ -3,4 +3,4 @@ numpy
 torch
 tensorboard
 transformers
-mecab-python3
+mecab-python3==0.996.5

@@ -322,10 +322,10 @@ MULTIPLE_CHOICE_TASKS_NUM_LABELS = {"jaqket", 20}
 ###############################################################################
 
 ALL_MODELS = (
-    "bert-base-japanese",
-    "bert-base-japanese-whole-word-masking",
-    "bert-base-japanese-char",
-    "bert-base-japanese-char-whole-word-masking",
+    "cl-tohoku/bert-base-japanese",
+    "cl-tohoku/bert-base-japanese-whole-word-masking",
+    "cl-tohoku/bert-base-japanese-char",
+    "cl-tohoku/bert-base-japanese-char-whole-word-masking",
 )
 
 MODEL_CLASSES = {
@@ -809,7 +809,7 @@ def main():
     )
     parser.add_argument(
         "--model_name_or_path",
-        default="bert-base-japanese-whole-word-masking",
+        default="cl-tohoku/bert-base-japanese-whole-word-masking",
         type=str,
         help=", ".join(ALL_MODELS),
     )

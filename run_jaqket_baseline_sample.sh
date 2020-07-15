@@ -10,7 +10,7 @@ ENTITY=candidate_entities.json.gz
 
 python ../JAQKET_baseline/jaqket_baseline.py  \
   --data_dir   ${DDIR} \
-  --model_name_or_path bert-base-japanese-whole-word-masking \
+  --model_name_or_path cl-tohoku/bert-base-japanese-whole-word-masking \
   --task_name jaqket \
   --entities_fname ${ENTITY} \
   --train_fname ${TRAIN} \
