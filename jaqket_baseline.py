@@ -242,7 +242,7 @@ def convert_examples_to_features(
                 text_b,
                 add_special_tokens=True,
                 max_length=max_length,
-                truncation_strategy="only_first",  # 常にcontextをtruncate
+                truncation="only_first",  # 常にcontextをtruncate
             )
             if "num_truncated_tokens" in inputs and inputs["num_truncated_tokens"] > 0:
                 logger.info(
@@ -605,7 +605,7 @@ def train(args, train_dataset, model, tokenizer):
                     output_dir)
             # save model END
             if args.max_steps > 0 and global_step > args.max_steps:
-                epoch_iterator.close()
+                train_iterator.close()
                 break
         if args.max_steps > 0 and global_step > args.max_steps:
             train_iterator.close()
