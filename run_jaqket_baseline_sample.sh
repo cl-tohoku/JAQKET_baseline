@@ -6,7 +6,7 @@ OUTDIR=output_dir
 TRAIN=train_questions.json
 DEV=dev1_questions.json
 TEST=dev2_questions.json
-ENTITY=candidate_entities.json.gz
+ENTITY=all_entities.json.gz
 
 python ../JAQKET_baseline/jaqket_baseline.py  \
   --data_dir   ${DDIR} \
