@@ -24,10 +24,10 @@ $ pip install mecab-python3
 ```
 $ mkdir ../data
 $ cd ../data
-$ wget https://jaqket.s3-ap-northeast-1.amazonaws.com/data/train_questions.json
-$ wget https://jaqket.s3-ap-northeast-1.amazonaws.com/data/dev1_questions.json
-$ wget https://jaqket.s3-ap-northeast-1.amazonaws.com/data/dev2_questions.json
-$ wget https://jaqket.s3-ap-northeast-1.amazonaws.com/data/all_entities.json.gz
+$ wget https://jaqket.s3.ap-northeast-1.amazonaws.com/data/aio_01/train_questions.json
+$ wget https://jaqket.s3.ap-northeast-1.amazonaws.com/data/aio_01/dev1_questions.json
+$ wget https://jaqket.s3.ap-northeast-1.amazonaws.com/data/aio_01/dev2_questions.json
+$ wget https://jaqket.s3.ap-northeast-1.amazonaws.com/data/aio_01/all_entities.json.gz
 
 $ mkdir ../working_dir
 $ cd ../working_dir
